@@ -9,6 +9,7 @@ import android.content.pm.PackageManager
 import android.os.Bundle
 import android.widget.Button
 import android.view.ViewGroup
+import android.widget.FrameLayout
 import androidx.activity.ComponentActivity
 import androidx.core.app.ActivityCompat
 import com.google.android.gms.location.*
@@ -101,10 +102,10 @@ class MainActivity : ComponentActivity(), OnMapReadyCallback {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        //  Initialize Places
+        // Initialize Places
         Places.initialize(applicationContext, "AIzaSyCEN94PWkSXos5XvbWebty6H7eI_vs8y7s")
 
-        //  Root layout
+        // Root layout
         val rootLayout = android.widget.FrameLayout(this)
 
         mapView = MapView(this)
@@ -113,7 +114,7 @@ class MainActivity : ComponentActivity(), OnMapReadyCallback {
 
         rootLayout.addView(mapView)
 
-        //  Search button
+        // Search button
         val searchButton = Button(this)
         searchButton.text = "Search"
         searchButton.setOnClickListener { openSearch() }
@@ -127,7 +128,7 @@ class MainActivity : ComponentActivity(), OnMapReadyCallback {
 
         rootLayout.addView(searchButton, searchParams)
 
-        //  Start button
+        // Start button
         val startButton = Button(this)
         startButton.text = "Start"
 
@@ -150,6 +151,55 @@ class MainActivity : ComponentActivity(), OnMapReadyCallback {
                 println("No destination selected")
             }
         }
+        //  LEFT BUTTON
+        val leftButton = Button(this)
+        leftButton.text = "LEFT"
+        leftButton.setOnClickListener {
+            sendCommand("LEFT")
+        }
+
+        val leftParams = FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        )
+        leftParams.topMargin = 400
+        leftParams.leftMargin = 50
+
+        rootLayout.addView(leftButton, leftParams)
+
+
+     //  RIGHT BUTTON
+        val rightButton = Button(this)
+        rightButton.text = "RIGHT"
+        rightButton.setOnClickListener {
+            sendCommand("RIGHT")
+        }
+
+        val rightParams = FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        )
+        rightParams.topMargin = 500
+        rightParams.leftMargin = 50
+
+        rootLayout.addView(rightButton, rightParams)
+
+
+     // STRAIGHT BUTTON
+        val straightButton = Button(this)
+        straightButton.text = "STRAIGHT"
+        straightButton.setOnClickListener {
+            sendCommand("STRAIGHT")
+        }
+
+        val straightParams = FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        )
+        straightParams.topMargin = 600
+        straightParams.leftMargin = 50
+
+        rootLayout.addView(straightButton, straightParams)
 
         val startParams = android.widget.FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -160,14 +210,18 @@ class MainActivity : ComponentActivity(), OnMapReadyCallback {
 
         rootLayout.addView(startButton, startParams)
 
-        // SCAN DEVICES BUTTON
+        //  FIX: CREATE scanButton FIRST
         val scanButton = Button(this)
         scanButton.text = "Scan Devices"
 
         scanButton.setOnClickListener {
+
             scanDevices()
 
-            // wait 5 sec then show list
+            // SHOW DIALOG IMMEDIATELY
+            showScannedDevices()
+
+            // REFRESH AFTER 5 SECONDS
             android.os.Handler(mainLooper).postDelayed({
                 showScannedDevices()
             }, 5000)
@@ -177,7 +231,7 @@ class MainActivity : ComponentActivity(), OnMapReadyCallback {
             ViewGroup.LayoutParams.WRAP_CONTENT,
             ViewGroup.LayoutParams.WRAP_CONTENT
         )
-        scanParams.topMargin = 300   // below Start button
+        scanParams.topMargin = 300
         scanParams.leftMargin = 50
 
         rootLayout.addView(scanButton, scanParams)
@@ -313,34 +367,44 @@ class MainActivity : ComponentActivity(), OnMapReadyCallback {
                 bluetoothSocket = device.createRfcommSocketToServiceRecord(uuid)
                 bluetoothSocket?.connect()
 
+                //  SEND CONNECTION MESSAGE TO ESP32
+                sendCommand("CONNECTED")
+
                 runOnUiThread {
                     println("✅ Connected to ${device.name}")
                 }
 
             } catch (e: Exception) {
                 e.printStackTrace()
+
+                runOnUiThread {
+                    println("❌ Connection Failed")
+                }
             }
         }.start()
     }
 
     fun showScannedDevices() {
 
-        if (discoveredDevices.isEmpty()) {
-            println("No devices found")
-            return
+        val deviceNames = if (discoveredDevices.isEmpty()) {
+            arrayOf("Scanning... Please wait")
+        } else {
+            discoveredDevices.map {
+                (it.name ?: "Unknown") + "\n" + it.address
+            }.toTypedArray()
         }
-
-        val deviceNames = discoveredDevices.map {
-            (it.name ?: "Unknown") + "\n" + it.address
-        }.toTypedArray()
 
         val builder = android.app.AlertDialog.Builder(this)
         builder.setTitle("Select Device")
 
         builder.setItems(deviceNames) { _, which ->
-            val device = discoveredDevices[which]
-            connectToDevice(device)
+            if (discoveredDevices.isNotEmpty()) {
+                val device = discoveredDevices[which]
+                connectToDevice(device)
+            }
         }
+
+        builder.setCancelable(true)
 
         builder.show()
     }
